@@ -10,7 +10,7 @@ const updateZaloTokens = async () => {
     const response = await axios.post(
       'https://oauth.zaloapp.com/v4/oa/access_token',
       new URLSearchParams({
-        refresh_token: process.env.ZALO_OA_REFRESH_TOKEN,
+        refresh_token: process.env.ZALO_REFRESH_TOKEN,
         app_id: process.env.ZALO_APP_ID,
         grant_type: 'refresh_token',
       }),
