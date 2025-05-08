@@ -34,13 +34,13 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
     };
 
     const { data } = await axios.request(options);
-    console.log('✅ Created/Found Contact:', data);
-
     const contactId = data?.contact?.id;
+
     if (!contactId || typeof contactId !== 'string') {
       throw new Error(`❌ contactId không hợp lệ: ${contactId}`);
     }
 
+    console.log('✅ Created/Found Contact:', contactId);
     return contactId;
   } catch (error) {
     console.error('❌ Failed to create contact:', error.response?.data || error);
@@ -59,8 +59,14 @@ export const createConversation = async (locationId, contactId) => {
     };
 
     const { data } = await axios.request(options);
-    console.log('✅ Created Conversation:', data);
-    return data.id;
+    const conversationId = data?.conversation?.id;
+
+    if (!conversationId || typeof conversationId !== 'string') {
+      throw new Error(`❌ conversationId không hợp lệ: ${conversationId}`);
+    }
+
+    console.log('✅ Created Conversation:', conversationId);
+    return conversationId;
   } catch (error) {
     console.error('❌ Failed to create conversation:', error.response?.data || error);
     throw error;
@@ -104,12 +110,6 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
 
   try {
     const contactId = await createOrGetContact({ phone, name, locationId });
-
-    if (!contactId || typeof contactId !== 'string') {
-      console.error('❌ contactId không hợp lệ khi tạo conversation:', contactId);
-      return;
-    }
-
     const conversationId = await createConversation(locationId, contactId);
     await addInboundMessage({ conversationId, message });
   } catch (error) {
@@ -117,14 +117,8 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
   }
 };
 
-// 5. Hàm sendToGHL được gọi từ index.js
+// 5. Gửi từ app chính
 export const sendToGHL = async (sender, message) => {
   const { id: zaloId, firstName, lastName } = sender;
-
-  await handleGHLMessage({
-    zaloId,
-    firstName,
-    lastName,
-    message
-  });
+  await handleGHLMessage({ zaloId, firstName, lastName, message });
 };
