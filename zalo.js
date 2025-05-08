@@ -30,7 +30,7 @@ router.post('/zalo', async (req, res) => {
           field_type: 'system'
         }
       });
-console.log('🔍 Zalo user info:', JSON.stringify(userInfoRes.data, null, 2));
+console.error('🪵 Full error response:', JSON.stringify(err.response?.data || err.message, null, 2));
       const fields = userInfoRes.data.data?.fields || [];
 const nameField = fields.find(f => f.key === 'ten_hien_thi');
 const fullName = nameField?.value || 'Zalo User';
