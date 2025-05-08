@@ -105,3 +105,15 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
     console.error('❌ handleGHLMessage failed:', error.response?.data || error);
   }
 };
+
+// 5. Hàm sendToGHL được gọi từ index.js
+export const sendToGHL = async (sender, message) => {
+  const { id: zaloId, firstName, lastName } = sender;
+
+  await handleGHLMessage({
+    zaloId,
+    firstName,
+    lastName,
+    message
+  });
+};
