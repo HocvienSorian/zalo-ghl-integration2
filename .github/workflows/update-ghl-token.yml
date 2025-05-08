@@ -16,6 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Load current .env from Git
+        run: git checkout origin/main -- .env
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -32,5 +35,5 @@ jobs:
           git config user.name 'github-actions'
           git config user.email 'github-actions@github.com'
           git add .env
-          git commit -m "🔁 Update GHL tokens" || echo "No changes to commit"
+          git diff --cached --quiet || git commit -m "🔁 Update GHL tokens"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
