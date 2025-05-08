@@ -1,4 +1,3 @@
-// ghl.js
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -36,7 +35,13 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
 
     const { data } = await axios.request(options);
     console.log('✅ Created/Found Contact:', data);
-    return data.id; // contactId
+
+    const contactId = data?.contact?.id;
+    if (!contactId || typeof contactId !== 'string') {
+      throw new Error(`❌ contactId không hợp lệ: ${contactId}`);
+    }
+
+    return contactId;
   } catch (error) {
     console.error('❌ Failed to create contact:', error.response?.data || error);
     throw error;
@@ -55,7 +60,7 @@ export const createConversation = async (locationId, contactId) => {
 
     const { data } = await axios.request(options);
     console.log('✅ Created Conversation:', data);
-    return data.id; // conversationId
+    return data.id;
   } catch (error) {
     console.error('❌ Failed to create conversation:', error.response?.data || error);
     throw error;
@@ -93,12 +98,18 @@ export const addInboundMessage = async ({
 
 // 4. Tổng hợp xử lý tin nhắn từ Zalo
 export const handleGHLMessage = async ({ zaloId, firstName, lastName, message }) => {
-  const phone = `+84${zaloId.slice(-9)}`; // giả lập số ĐT từ Zalo ID
+  const phone = `+84${zaloId.slice(-9)}`;
   const name = `${firstName} ${lastName}`.trim();
   const locationId = process.env.GHL_LOCATION_ID;
 
   try {
     const contactId = await createOrGetContact({ phone, name, locationId });
+
+    if (!contactId || typeof contactId !== 'string') {
+      console.error('❌ contactId không hợp lệ khi tạo conversation:', contactId);
+      return;
+    }
+
     const conversationId = await createConversation(locationId, contactId);
     await addInboundMessage({ conversationId, message });
   } catch (error) {
