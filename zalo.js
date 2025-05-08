@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { handleGHLMessage } from './ghl.js';
 
 dotenv.config();
+
 const router = express.Router();
 
 // Zalo webhook handler
@@ -13,25 +14,29 @@ router.post('/zalo', async (req, res) => {
 
   try {
     if (body.event_name === 'user_send_text') {
-      const userId = body.sender.id; // zaloId
+      const userId = body.sender.id;
       const message = body.message.text;
 
-      // Lấy thông tin người dùng từ Zalo
-      const userInfoRes = await axios.get(
-        `https://openapi.zalo.me/v2.0/oa/getprofile?user_id=${userId}`,
-        {
-          headers: {
-            access_token: process.env.ZALO_OA_ACCESS_TOKEN
-          }
+      // Gọi API lấy thông tin người dùng từ Zalo (API v3.0)
+      const userInfoRes = await axios({
+        method: 'post',
+        url: 'https://openapi.zalo.me/v3.0/oa/userfield/get',
+        headers: {
+          access_token: process.env.ZALO_OA_ACCESS_TOKEN,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          user_id: userId,
+          field_type: 'system'
         }
-      );
+      });
 
       const user = userInfoRes.data.data;
-      const fullName = user.name || 'Zalo User';
+      const fullName = user.name || user.display_name || 'Zalo User';
       const firstName = fullName;
-      const lastName = '';
+      const lastName = ''; // Zalo không phân tách họ tên
 
-      // Gửi dữ liệu sang GHL
+      // Gửi thông tin sang GHL
       await handleGHLMessage({
         zaloId: userId,
         firstName,
@@ -42,9 +47,10 @@ router.post('/zalo', async (req, res) => {
       return res.sendStatus(200);
     }
 
-    return res.sendStatus(200); // ignore các event khác
+    // Bỏ qua các sự kiện khác
+    return res.sendStatus(200);
   } catch (err) {
-    console.error('Zalo webhook error:', err.response?.data || err.message);
+    console.error('❌ Zalo webhook error:', err.response?.data || err.message);
     return res.sendStatus(500);
   }
 });
@@ -65,6 +71,7 @@ export async function replyZaloText({ userId, message }) {
         }
       }
     );
+
     console.log('✅ Sent reply to Zalo user:', userId);
   } catch (err) {
     console.error('❌ Zalo send message error:', err.response?.data || err.message);
