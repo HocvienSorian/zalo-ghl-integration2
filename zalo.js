@@ -32,11 +32,13 @@ router.post('/zalo', async (req, res) => {
       });
 
       const fields = userInfoRes.data.data?.fields || [];
-      const nameField = fields.find(f => f.key === 'ten_hien_thi');
-      const fullName = nameField?.value?.trim() || 'Zalo User';
+const nameField = fields.find(f => f.key === 'ten_hien_thi');
+const fullName = nameField?.value?.trim() || 'Zalo User';
 
-      const firstName = fullName;
-      const lastName = ''; // Zalo không phân biệt họ tên
+// ✅ Tách tên: phần cuối là firstName, phần đầu là lastName
+const nameParts = fullName.split(' ');
+const firstName = nameParts.pop(); // tên cuối
+const lastName = nameParts.join(' ') || ''; // phần còn lại
 
       // Gửi thông tin sang GHL
       await handleGHLMessage({
