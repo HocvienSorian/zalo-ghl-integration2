@@ -4,8 +4,10 @@ on:
   schedule:
     - cron: '0 */20 * * *' # chạy mỗi 20 giờ
   workflow_dispatch: # cho phép chạy thủ công
+
 permissions:
   contents: write
+
 jobs:
   update-tokens:
     runs-on: ubuntu-latest
@@ -27,10 +29,8 @@ jobs:
 
       - name: Commit and push updated .env
         run: |
-          git config --global user.name 'github-actions'
-          git config --global user.email 'github-actions@github.com'
+          git config user.name 'github-actions'
+          git config user.email 'github-actions@github.com'
           git add .env
-          git commit -m "🔁 Update GHL tokens"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git commit -m "🔁 Update GHL tokens" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
