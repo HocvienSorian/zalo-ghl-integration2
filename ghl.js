@@ -5,7 +5,7 @@ dotenv.config();
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 const HEADERS = {
-  Authorization: `Bearer ${process.env.GHL_ACCESS_TOKEN}`,
+  Authorization: `Bearer ${process.env.GHL_PRIVATE_INTEGRATION}`,
   'Content-Type': 'application/json',
   Accept: 'application/json'
 };
