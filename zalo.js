@@ -17,7 +17,7 @@ router.post('/zalo', async (req, res) => {
       const userId = body.sender.id;
       const message = body.message.text;
 
-      // Gọi API lấy thông tin người dùng từ Zalo (API v3.0)
+      // ✅ Gọi API lấy tên hiển thị từ custom field
       const userInfoRes = await axios({
         method: 'post',
         url: 'https://openapi.zalo.me/v3.0/oa/userfield/get',
@@ -27,13 +27,13 @@ router.post('/zalo', async (req, res) => {
         },
         data: {
           user_id: userId,
-          field_type: 'system'
+          field_type: 'oa_custom'
         }
       });
 
       const fields = userInfoRes.data.data?.fields || [];
       const nameField = fields.find(f => f.key === 'ten_hien_thi');
-      const fullName = nameField?.value || 'Zalo User';
+      const fullName = nameField?.value?.trim() || 'Zalo User';
 
       const firstName = fullName;
       const lastName = ''; // Zalo không phân biệt họ tên
@@ -49,8 +49,7 @@ router.post('/zalo', async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Bỏ qua các sự kiện khác
-    return res.sendStatus(200);
+    return res.sendStatus(200); // Bỏ qua các sự kiện khác
   } catch (err) {
     console.error('❌ Zalo webhook error:', err.response?.data || err.message);
     return res.sendStatus(500);
