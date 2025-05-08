@@ -78,4 +78,20 @@ export async function replyZaloText({ userId, message }) {
   }
 }
 
+// Hàm xuất ra để GHL gửi tin về Zalo
+export function sendZaloMessage(userId, message) {
+  return replyZaloText({ userId, message });
+}
+
+// Hàm parse dữ liệu từ webhook của Zalo
+export function parseZaloMessage(body) {
+  const sender = {
+    id: body.sender?.id,
+    firstName: body.sender?.name || 'Zalo User',
+    lastName: ''
+  };
+  const message = body.message?.text;
+  return { sender, message };
+}
+
 export default router;
