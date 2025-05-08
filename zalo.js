@@ -30,14 +30,8 @@ router.post('/zalo', async (req, res) => {
           field_type: 'system'
         }
       });
-console.log('📦 Zalo userInfoRes =', JSON.stringify(userInfoRes.data, null, 2));
-     const fields = userInfoRes.data.data?.fields || [];
-
-// Sửa key 'ten_hien_thi' thành 'display_name' đúng theo response từ Zalo
-const nameField = fields.find(f => f.key === 'display_name');
-
-// Nếu không có tên thì fallback về 'Zalo User'
-const fullName = nameField?.value || 'Zalo User';
+ const userData = response.data.data;
+    const fullName = userData?.display_name || 'Zalo User';
 
 // Bạn có thể tách tên nếu muốn, hoặc giữ nguyên
 const firstName = fullName;
