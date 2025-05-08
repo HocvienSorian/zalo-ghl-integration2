@@ -32,7 +32,7 @@ router.post('/zalo', async (req, res) => {
       });
 console.log('📦 Zalo userInfoRes =', JSON.stringify(userInfoRes.data, null, 2));
       const fields = userInfoRes.data.data?.fields || [];
-const nameField = fields.find(f => f.key === 'ten_hien_thi');
+const nameField = fields.find(f => f.key === 'display_name');
 const fullName = nameField?.value || 'Zalo User';
 
       const firstName = fullName;
