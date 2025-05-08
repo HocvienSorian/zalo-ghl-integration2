@@ -31,12 +31,17 @@ router.post('/zalo', async (req, res) => {
         }
       });
 console.log('📦 Zalo userInfoRes =', JSON.stringify(userInfoRes.data, null, 2));
-      const fields = userInfoRes.data.data?.fields || [];
+     const fields = userInfoRes.data.data?.fields || [];
+
+// Sửa key 'ten_hien_thi' thành 'display_name' đúng theo response từ Zalo
 const nameField = fields.find(f => f.key === 'display_name');
+
+// Nếu không có tên thì fallback về 'Zalo User'
 const fullName = nameField?.value || 'Zalo User';
 
-      const firstName = fullName;
-      const lastName = ''; // Zalo không phân biệt họ tên
+// Bạn có thể tách tên nếu muốn, hoặc giữ nguyên
+const firstName = fullName;
+const lastName = ''; // Vì Zalo không có thông tin tách riêng họ và tên
 
       // Gửi thông tin sang GHL
       await handleGHLMessage({
