@@ -5,11 +5,5 @@
         "source": "/(.*)",
         "destination": "/api"
       }
-    ],
-    "cron": [
-      {
-        "path": "/api/refresh-token",
-        "schedule": "0 */20 * * *"
-      }
     ]
   }
