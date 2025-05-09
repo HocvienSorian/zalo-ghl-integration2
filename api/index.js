@@ -2,7 +2,7 @@
 import express from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
-import zaloRouter, { sendZaloMessage, parseZaloMessage } from "../zalo.js";
+import zaloRouter, { sendZaloMessage, handleZaloWebhook } from "../zalo.js";
 import { sendToGHL } from "../ghl.js";
 
 dotenv.config();
@@ -10,22 +10,16 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
-// Gắn router Zalo → POST /zalo/
+// Route chính Zalo
 app.use("/zalo", zaloRouter);
 
-// ZALO → GHL (Webhook Zalo v3.0 gửi về đây nếu bạn dùng /webhook/zalo riêng)
+// Route phụ vẫn hỗ trợ /webhook/zalo (dùng chung logic với /zalo/)
 app.post("/webhook/zalo", async (req, res) => {
-  console.log("📥 [Webhook] Zalo gửi đến:", req.body);
-  const { sender, message } = parseZaloMessage(req.body);
-
-  if (sender && message) {
-    await sendToGHL(sender, message);
-  }
-
-  res.status(200).send("Zalo message received");
+  console.log("📥 [Webhook] Zalo gửi đến /webhook/zalo:", req.body);
+  await handleZaloWebhook(req, res); // gọi handler từ zalo.js
 });
 
-// GHL → ZALO (GHL gửi tin nhắn về cho user)
+// GHL → ZALO
 app.post("/webhook/ghl", async (req, res) => {
   const { contact, message } = req.body;
   const zaloId = contact?.customField?.zalo_uid;
@@ -39,5 +33,4 @@ app.post("/webhook/ghl", async (req, res) => {
   res.status(200).send("GHL message received");
 });
 
-// ✅ Export app cho Vercel
 export default app;
