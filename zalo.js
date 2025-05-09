@@ -2,6 +2,7 @@
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import qs from 'qs'; // ⚠️ Nhớ: npm install qs
 import { handleGHLMessage } from './ghl.js';
 
 dotenv.config();
@@ -22,7 +23,7 @@ export async function handleZaloWebhook(req, res) {
       console.log('👤 User ID:', userId);
       console.log('💬 Message:', message);
 
-      // 🔍 Truy xuất chi tiết người dùng (API Zalo v3.0 - user/detail)
+      // ✅ Truy xuất chi tiết người dùng từ Zalo (GET + xử lý encode)
       const userDetailRes = await axios.get(
         'https://openapi.zalo.me/v3.0/oa/user/detail',
         {
@@ -30,10 +31,9 @@ export async function handleZaloWebhook(req, res) {
             access_token: process.env.ZALO_OA_ACCESS_TOKEN
           },
           params: {
-            data: JSON.stringify({
-              user_id: userId
-            })
-          }
+            data: JSON.stringify({ user_id: userId })
+          },
+          paramsSerializer: params => qs.stringify(params, { encode: false }) // 🔑 Không encode 2 lần
         }
       );
 
@@ -45,7 +45,7 @@ export async function handleZaloWebhook(req, res) {
       const fullName = sharedName || displayName;
 
       const firstName = fullName;
-      const lastName = ''; // Không có họ riêng
+      const lastName = '';
 
       // ➡️ Gửi sang GHL
       await handleGHLMessage({
@@ -65,7 +65,7 @@ export async function handleZaloWebhook(req, res) {
   }
 }
 
-// Gắn route cho /zalo/ dùng chung handler
+// Gắn route cho /zalo/
 router.post("/", handleZaloWebhook);
 
 // Gửi tin nhắn từ GHL về Zalo
