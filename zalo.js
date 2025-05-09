@@ -22,27 +22,32 @@ export async function handleZaloWebhook(req, res) {
       console.log('👤 User ID:', userId);
       console.log('💬 Message:', message);
 
-      // Gọi API lấy thông tin người dùng từ Zalo
-      const userInfoRes = await axios({
-        method: 'post',
-        url: 'https://openapi.zalo.me/v3.0/oa/userfield/get',
-        headers: {
-          access_token: process.env.ZALO_OA_ACCESS_TOKEN,
-          'Content-Type': 'application/json'
-        },
-        data: {
-          user_id: userId,
-          field_type: 'system'
+      // 🔍 Truy xuất chi tiết người dùng (API Zalo v3.0 - user/detail)
+      const userDetailRes = await axios.get(
+        'https://openapi.zalo.me/v3.0/oa/user/detail',
+        {
+          headers: {
+            access_token: process.env.ZALO_OA_ACCESS_TOKEN
+          },
+          params: {
+            data: JSON.stringify({
+              user_id: userId
+            })
+          }
         }
-      });
+      );
 
-      console.log('📦 Dữ liệu người dùng từ Zalo:', JSON.stringify(userInfoRes.data, null, 2));
-      const userData = userInfoRes.data.data;
-      const fullName = userData?.display_name || 'Zalo User';
+      console.log('📦 Chi tiết người dùng từ Zalo:', JSON.stringify(userDetailRes.data, null, 2));
+
+      const userData = userDetailRes.data?.data || {};
+      const displayName = userData.display_name || 'Zalo User';
+      const sharedName = userData.shared_info?.name || '';
+      const fullName = sharedName || displayName;
 
       const firstName = fullName;
-      const lastName = '';
+      const lastName = ''; // Không có họ riêng
 
+      // ➡️ Gửi sang GHL
       await handleGHLMessage({
         zaloId: userId,
         firstName,
