@@ -18,32 +18,38 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
     const [firstName, ...rest] = name.split(' ');
     const lastName = rest.join(' ') || '-';
 
-    const options = {
-      method: 'POST',
-      url: `${GHL_API_BASE}/contacts/`,
-      headers: { ...HEADERS, Version: VERSION_CONTACT },
-      data: {
+    const createRes = await axios.post(
+      `${GHL_API_BASE}/contacts/`,
+      {
         firstName,
         lastName,
         name,
         phone,
         locationId,
         source: 'zalo-oa',
-        tags: ['zalo'],
-        customField: {
-          zalo_id: zaloId
-        }
-      }
-    };
+        tags: ['zalo']
+      },
+      { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+    );
 
-    const { data } = await axios.request(options);
-    const contactId = data?.contact?.id;
-
+    const contactId = createRes?.data?.contact?.id;
     if (!contactId || typeof contactId !== 'string') {
       throw new Error(`❌ contactId không hợp lệ: ${contactId}`);
     }
 
     console.log('✅ Created/Found Contact:', contactId);
+
+    await axios.put(
+      `${GHL_API_BASE}/contacts/${contactId}`,
+      {
+        customField: {
+          zalo_id: zaloId
+        }
+      },
+      { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+    );
+    console.log('✅ Updated custom field zalo_id:', zaloId);
+
     return contactId;
   } catch (error) {
     const meta = error.response?.data?.meta;
@@ -53,6 +59,22 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
       meta?.contactId
     ) {
       console.warn('⚠️ Contact đã tồn tại. Dùng lại contactId:', meta.contactId);
+
+      try {
+        await axios.put(
+          `${GHL_API_BASE}/contacts/${meta.contactId}`,
+          {
+            customField: {
+              zalo_id: zaloId
+            }
+          },
+          { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+        );
+        console.log('✅ Updated existing contact\'s custom field zalo_id');
+      } catch (updateErr) {
+        console.warn('⚠️ Không thể cập nhật custom field:', updateErr.response?.data || updateErr.message);
+      }
+
       return meta.contactId;
     }
 
