@@ -1,3 +1,4 @@
+// 🔁 FILE: ghl.js
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -12,8 +13,7 @@ const HEADERS = {
 const VERSION_CONTACT = '2021-07-28';
 const VERSION_CONVERSATION = '2021-04-15';
 
-// 1. Create or Get Contact
-export const createOrGetContact = async ({ phone, name, locationId }) => {
+export const createOrGetContact = async ({ phone, name, locationId, zaloId }) => {
   try {
     const [firstName, ...rest] = name.split(' ');
     const lastName = rest.join(' ') || '-';
@@ -30,6 +30,9 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
         locationId,
         source: 'zalo-oa',
         tags: ['zalo'],
+        customField: {
+          zalo_id: zaloId
+        }
       }
     };
 
@@ -58,10 +61,8 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
   }
 };
 
-// 2. Get or Create Conversation
 export const getOrCreateConversation = async (locationId, contactId) => {
   try {
-    // Tạo mới conversation
     const response = await axios.post(
       `${GHL_API_BASE}/conversations/`,
       { locationId, contactId },
@@ -77,7 +78,6 @@ export const getOrCreateConversation = async (locationId, contactId) => {
       error.response?.status === 400 &&
       message.includes('already exists')
     ) {
-      // Nếu conversation đã tồn tại, tìm lại conversation
       console.warn('⚠️ Conversation đã tồn tại. Đang tìm lại...');
       return await findConversationByContact(locationId, contactId);
     }
@@ -87,17 +87,13 @@ export const getOrCreateConversation = async (locationId, contactId) => {
   }
 };
 
-// 2.1 Tìm conversation đã tồn tại
 export const findConversationByContact = async (locationId, contactId) => {
   try {
     const response = await axios.get(
       `${GHL_API_BASE}/conversations/search`,
       {
         headers: { ...HEADERS, Version: VERSION_CONVERSATION },
-        params: {
-          locationId,
-          contactId
-        }
+        params: { locationId, contactId }
       }
     );
 
@@ -112,12 +108,7 @@ export const findConversationByContact = async (locationId, contactId) => {
   }
 };
 
-// 3. Add Inbound Message
-export const addInboundMessage = async ({
-  conversationId,
-  message,
-  date = new Date().toISOString()
-}) => {
+export const addInboundMessage = async ({ conversationId, message, date = new Date().toISOString() }) => {
   try {
     const response = await axios.post(
       `${GHL_API_BASE}/conversations/messages/inbound`,
@@ -139,14 +130,13 @@ export const addInboundMessage = async ({
   }
 };
 
-// 4. Tổng hợp xử lý tin nhắn từ Zalo
 export const handleGHLMessage = async ({ zaloId, firstName, lastName, message }) => {
   const phone = `+84${zaloId.slice(-9)}`;
   const name = `${firstName} ${lastName}`.trim();
   const locationId = process.env.GHL_LOCATION_ID;
 
   try {
-    const contactId = await createOrGetContact({ phone, name, locationId });
+    const contactId = await createOrGetContact({ phone, name, locationId, zaloId });
     const conversationId = await getOrCreateConversation(locationId, contactId);
     await addInboundMessage({ conversationId, message });
   } catch (error) {
@@ -154,7 +144,6 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
   }
 };
 
-// 5. Gửi từ app chính
 export const sendToGHL = async (sender, message) => {
   const { id: zaloId, firstName, lastName } = sender;
   await handleGHLMessage({ zaloId, firstName, lastName, message });
