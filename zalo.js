@@ -24,7 +24,7 @@ export async function handleZaloWebhook(req, res) {
       console.log('💬 Message:', message);
 
       // ✅ Truy xuất chi tiết người dùng từ Zalo (GET + xử lý encode)
-      const userDetailRes = await axios.get(
+      const userDetailRes = await axios.post(
         'https://openapi.zalo.me/v3.0/oa/user/detail',
         {
           headers: {
