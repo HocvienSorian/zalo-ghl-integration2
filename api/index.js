@@ -22,7 +22,7 @@ app.post("/webhook/zalo", async (req, res) => {
 // GHL → ZALO
 app.post("/webhook/ghl", async (req, res) => {
   const { contact, message } = req.body;
-  const zaloId = contact?.customField?.zalo_uid;
+  const zaloId = contact?.customField?.zalo_id;
 
   console.log("📤 [Webhook] GHL gửi về:", { zaloId, message });
 
