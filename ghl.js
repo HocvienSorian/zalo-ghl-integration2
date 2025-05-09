@@ -15,22 +15,6 @@ const VERSION_CONVERSATION = '2021-04-15';
 
 export const createOrGetContact = async ({ phone, name, locationId, zaloId }) => {
   try {
-    // 1. Tìm contact theo custom field zalo_id
-    const searchRes = await axios.get(`${GHL_API_BASE}/contacts/`, {
-      headers: { ...HEADERS, Version: VERSION_CONTACT },
-      params: { locationId, query: zaloId }
-    });
-
-    const existing = searchRes.data.contacts.find(c =>
-      c.customField?.some(field => field.customFieldKey === 'zalo_id' && field.value === zaloId)
-    );
-
-    if (existing) {
-      console.log('✅ Found existing contact by zalo_id:', existing.id);
-      return existing.id;
-    }
-
-    // 2. Nếu không tìm thấy → tạo contact mới
     const [firstName, ...rest] = name.split(' ');
     const lastName = rest.join(' ') || '-';
 
@@ -53,9 +37,9 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
       throw new Error(`❌ contactId không hợp lệ: ${contactId}`);
     }
 
-    console.log('✅ Created Contact:', contactId);
+    console.log('✅ Created/Found Contact:', contactId);
 
-    // 3. Gắn zalo_id vào customField
+    // Gắn zalo_id làm custom field sau khi tạo
     await axios.put(
       `${GHL_API_BASE}/contacts/${contactId}`,
       {
@@ -68,11 +52,40 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
       },
       { headers: { ...HEADERS, Version: VERSION_CONTACT } }
     );
+    console.log('✅ Updated custom field zalo_id:', zaloId);
 
-    console.log('✅ Set zalo_id on new contact:', zaloId);
     return contactId;
   } catch (error) {
-    console.error('❌ Failed to create or find contact:', error.response?.data || error);
+    const meta = error.response?.data?.meta;
+    if (
+      error.response?.status === 400 &&
+      error.response?.data?.message?.includes('duplicated contacts') &&
+      meta?.contactId
+    ) {
+      console.warn('⚠️ Contact đã tồn tại. Dùng lại contactId:', meta.contactId);
+
+      try {
+        await axios.put(
+          `${GHL_API_BASE}/contacts/${meta.contactId}`,
+          {
+            customFields: [
+              {
+                key: 'zalo_id',
+                value: zaloId
+              }
+            ]
+          },
+          { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+        );
+        console.log('✅ Updated existing contact\'s custom field zalo_id');
+      } catch (updateErr) {
+        console.warn('⚠️ Không thể cập nhật custom field:', updateErr.response?.data || updateErr.message);
+      }
+
+      return meta.contactId;
+    }
+
+    console.error('❌ Failed to create contact:', error.response?.data || error);
     throw error;
   }
 };
@@ -90,7 +103,10 @@ export const getOrCreateConversation = async (locationId, contactId) => {
     return conversationId;
   } catch (error) {
     const message = error.response?.data?.message || '';
-    if (error.response?.status === 400 && message.includes('already exists')) {
+    if (
+      error.response?.status === 400 &&
+      message.includes('already exists')
+    ) {
       console.warn('⚠️ Conversation đã tồn tại. Đang tìm lại...');
       return await findConversationByContact(locationId, contactId);
     }
@@ -102,10 +118,13 @@ export const getOrCreateConversation = async (locationId, contactId) => {
 
 export const findConversationByContact = async (locationId, contactId) => {
   try {
-    const response = await axios.get(`${GHL_API_BASE}/conversations/search`, {
-      headers: { ...HEADERS, Version: VERSION_CONVERSATION },
-      params: { locationId, contactId }
-    });
+    const response = await axios.get(
+      `${GHL_API_BASE}/conversations/search`,
+      {
+        headers: { ...HEADERS, Version: VERSION_CONVERSATION },
+        params: { locationId, contactId }
+      }
+    );
 
     const conversation = response.data?.conversations?.[0];
     if (!conversation?.id) throw new Error('❌ Không tìm thấy conversation hiện có');
