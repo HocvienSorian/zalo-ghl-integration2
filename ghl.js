@@ -43,6 +43,17 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
     console.log('✅ Created/Found Contact:', contactId);
     return contactId;
   } catch (error) {
+    // ✅ Nếu bị lỗi trùng contact, lấy từ meta
+    const meta = error.response?.data?.meta;
+    if (
+      error.response?.status === 400 &&
+      error.response?.data?.message?.includes('duplicated contacts') &&
+      meta?.contactId
+    ) {
+      console.warn('⚠️ Contact đã tồn tại. Dùng lại contactId:', meta.contactId);
+      return meta.contactId;
+    }
+
     console.error('❌ Failed to create contact:', error.response?.data || error);
     throw error;
   }
