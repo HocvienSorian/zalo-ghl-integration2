@@ -1,15 +1,13 @@
-// zalo.js
+// 🔁 FILE: zalo.js
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import qs from 'qs'; // ⚠️ Đảm bảo đã cài: npm install qs
+import qs from 'qs';
 import { handleGHLMessage } from './ghl.js';
 
 dotenv.config();
-
 const router = express.Router();
 
-// Webhook chính xử lý logic Zalo → GHL
 export async function handleZaloWebhook(req, res) {
   const body = req.body;
 
@@ -23,7 +21,6 @@ export async function handleZaloWebhook(req, res) {
       console.log('👤 User ID:', userId);
       console.log('💬 Message:', message);
 
-      // ✅ Truy xuất chi tiết người dùng từ Zalo (dùng GET + encode đúng)
       const userDetailRes = await axios.get(
         'https://openapi.zalo.me/v3.0/oa/user/detail',
         {
@@ -47,7 +44,6 @@ export async function handleZaloWebhook(req, res) {
       const firstName = fullName;
       const lastName = '';
 
-      // ➡️ Gửi sang GHL
       await handleGHLMessage({
         zaloId: userId,
         firstName,
@@ -58,17 +54,15 @@ export async function handleZaloWebhook(req, res) {
       return res.sendStatus(200);
     }
 
-    return res.sendStatus(200); // Bỏ qua các sự kiện không xử lý
+    return res.sendStatus(200);
   } catch (err) {
     console.error('❌ Zalo webhook error:', err.response?.data || err.message);
     return res.sendStatus(500);
   }
 }
 
-// Gắn route cho /zalo/
 router.post("/", handleZaloWebhook);
 
-// Gửi tin nhắn từ GHL về Zalo
 export async function replyZaloText({ userId, message }) {
   try {
     await axios.post(
@@ -84,19 +78,16 @@ export async function replyZaloText({ userId, message }) {
         }
       }
     );
-
     console.log('✅ Gửi tin nhắn Zalo thành công:', userId);
   } catch (err) {
     console.error('❌ Gửi tin nhắn Zalo thất bại:', err.response?.data || err.message);
   }
 }
 
-// Hàm gửi tin nhắn ra ngoài
 export function sendZaloMessage(userId, message) {
   return replyZaloText({ userId, message });
 }
 
-// Dùng cho webhook test
 export function parseZaloMessage(body) {
   const sender = {
     id: body.sender?.id,
