@@ -8,26 +8,20 @@ dotenv.config();
 
 const router = express.Router();
 
-// Zalo webhook handler
-router.post('/zalo', async (req, res) => {
+// Zalo webhook handler (POST /zalo/)
+router.post('/', async (req, res) => {
   const body = req.body;
 
   try {
+    console.log('📥 Webhook từ Zalo nhận được:', body);
+
     if (body.event_name === 'user_send_text') {
       const userId = body.sender.id;
       const message = body.message.text;
-// 
-      console.log('📥 Webhook nhận được:', body);
 
-if (body.event_name === 'user_send_text') {
-  const userId = body.sender.id;
-  const message = body.message.text;
+      console.log('👤 User ID:', userId);
+      console.log('💬 Message:', message);
 
-  console.log('👤 User ID:', userId);
-  console.log('💬 Message:', message);
-
-  return res.json({ userId, message });
-}
       // Gọi API lấy thông tin người dùng từ Zalo (API v3.0)
       const userInfoRes = await axios({
         method: 'post',
@@ -41,14 +35,13 @@ if (body.event_name === 'user_send_text') {
           field_type: 'system'
         }
       });
- const userData = userInfoRes.data.data;
-    const fullName = userData?.display_name || 'Zalo User';
 
-// Bạn có thể tách tên nếu muốn, hoặc giữ nguyên
-const firstName = fullName;
-const lastName = ''; // Vì Zalo không có thông tin tách riêng họ và tên
+      const userData = userInfoRes.data.data;
+      const fullName = userData?.display_name || 'Zalo User';
 
-      // Gửi thông tin sang GHL
+      const firstName = fullName;
+      const lastName = ''; // Zalo không có họ riêng
+
       await handleGHLMessage({
         zaloId: userId,
         firstName,
@@ -59,15 +52,13 @@ const lastName = ''; // Vì Zalo không có thông tin tách riêng họ và tê
       return res.sendStatus(200);
     }
 
-    // Bỏ qua các sự kiện khác
-    return res.sendStatus(200);
+    return res.sendStatus(200); // Bỏ qua các sự kiện khác
   } catch (err) {
     console.error('❌ Zalo webhook error:', err.response?.data || err.message);
     return res.sendStatus(500);
   }
 });
 
-// Gửi tin nhắn từ GHL về Zalo
 export async function replyZaloText({ userId, message }) {
   try {
     await axios.post(
@@ -84,18 +75,16 @@ export async function replyZaloText({ userId, message }) {
       }
     );
 
-    console.log('✅ Sent reply to Zalo user:', userId);
+    console.log('✅ Gửi tin nhắn Zalo thành công:', userId);
   } catch (err) {
-    console.error('❌ Zalo send message error:', err.response?.data || err.message);
+    console.error('❌ Gửi tin nhắn Zalo thất bại:', err.response?.data || err.message);
   }
 }
 
-// Hàm xuất ra để GHL gửi tin về Zalo
 export function sendZaloMessage(userId, message) {
   return replyZaloText({ userId, message });
 }
 
-// Hàm parse dữ liệu từ webhook của Zalo
 export function parseZaloMessage(body) {
   const sender = {
     id: body.sender?.id,
