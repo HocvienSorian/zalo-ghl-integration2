@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
           field_type: 'system'
         }
       });
-
+console.log('📦 Dữ liệu người dùng từ Zalo:', JSON.stringify(userInfoRes.data, null, 2));
       const userData = userInfoRes.data.data;
       const fullName = userData?.display_name || 'Zalo User';
 
