@@ -12,7 +12,7 @@ const HEADERS = {
 const VERSION_CONTACT = '2021-07-28';
 const VERSION_CONVERSATION = '2021-04-15';
 
-// 🔍 Tìm contact theo zalo_id bằng cách duyệt danh sách contact
+// 🔍 Quét danh sách contact và tìm theo zalo_id
 export const findContactByZaloId = async (locationId, zaloId) => {
   try {
     let page = 1;
@@ -51,13 +51,14 @@ export const findContactByZaloId = async (locationId, zaloId) => {
   }
 };
 
-// 🔁 Tạo hoặc cập nhật contact
+// 🔁 Tạo mới hoặc cập nhật contact tùy trường hợp
 export const createOrGetContact = async ({ phone, name, locationId, zaloId }) => {
-  try {
-    const existingContactId = await findContactByZaloId(locationId, zaloId);
-    const [firstName, ...rest] = name.split(' ');
-    const lastName = rest.join(' ') || '-';
+  const [firstName, ...rest] = name.split(' ');
+  const lastName = rest.join(' ') || '-';
 
+  try {
+    // Bước 1: Tìm theo zalo_id
+    const existingContactId = await findContactByZaloId(locationId, zaloId);
     if (existingContactId) {
       await axios.put(
         `${GHL_API_BASE}/contacts/${existingContactId}`,
@@ -66,9 +67,7 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
           name,
           firstName,
           lastName,
-          customFields: [
-            { key: 'zalo_id', value: zaloId }
-          ]
+          customFields: [{ key: 'zalo_id', value: zaloId }]
         },
         { headers: { ...HEADERS, Version: VERSION_CONTACT } }
       );
@@ -76,6 +75,7 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
       return existingContactId;
     }
 
+    // Bước 2: Tạo mới contact
     const createRes = await axios.post(
       `${GHL_API_BASE}/contacts/`,
       {
@@ -86,27 +86,49 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
         locationId,
         source: 'zalo-oa',
         tags: ['zalo'],
-        customFields: [
-          { key: 'zalo_id', value: zaloId }
-        ]
+        customFields: [{ key: 'zalo_id', value: zaloId }]
       },
       { headers: { ...HEADERS, Version: VERSION_CONTACT } }
     );
 
     const contactId = createRes?.data?.contact?.id;
-    if (!contactId || typeof contactId !== 'string') {
-      throw new Error(`❌ contactId không hợp lệ: ${contactId}`);
-    }
-
     console.log('✅ Created new contact:', contactId);
     return contactId;
+
   } catch (error) {
+    const meta = error.response?.data?.meta;
+    const message = error.response?.data?.message;
+
+    if (
+      error.response?.status === 400 &&
+      message?.includes('duplicated contacts') &&
+      meta?.contactId
+    ) {
+      const contactId = meta.contactId;
+      console.warn('⚠️ Contact đã tồn tại với phone. Dùng lại contactId:', contactId);
+
+      try {
+        await axios.put(
+          `${GHL_API_BASE}/contacts/${contactId}`,
+          {
+            customFields: [{ key: 'zalo_id', value: zaloId }]
+          },
+          { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+        );
+        console.log('✅ Updated existing contact\'s zalo_id');
+      } catch (updateErr) {
+        console.warn('⚠️ Không thể cập nhật custom field zalo_id:', updateErr.response?.data || updateErr.message);
+      }
+
+      return contactId;
+    }
+
     console.error('❌ Failed to create or update contact:', error.response?.data || error);
     throw error;
   }
 };
 
-// 💬 Lấy hoặc tạo cuộc hội thoại
+// 💬 Tạo hoặc tìm conversation
 export const getOrCreateConversation = async (locationId, contactId) => {
   try {
     const response = await axios.post(
@@ -133,7 +155,7 @@ export const getOrCreateConversation = async (locationId, contactId) => {
   }
 };
 
-// 🔎 Tìm hội thoại nếu đã tồn tại
+// 🔎 Tìm conversation hiện có
 export const findConversationByContact = async (locationId, contactId) => {
   try {
     const response = await axios.get(
@@ -155,7 +177,7 @@ export const findConversationByContact = async (locationId, contactId) => {
   }
 };
 
-// ➕ Thêm tin nhắn inbound vào hội thoại
+// ➕ Thêm tin nhắn inbound
 export const addInboundMessage = async ({ conversationId, message, date = new Date().toISOString() }) => {
   try {
     const response = await axios.post(
@@ -178,7 +200,7 @@ export const addInboundMessage = async ({ conversationId, message, date = new Da
   }
 };
 
-// 🔁 Tổng hợp toàn bộ xử lý
+// 🔁 Xử lý toàn bộ từ Zalo gửi vào
 export const handleGHLMessage = async ({ zaloId, firstName, lastName, message }) => {
   const phone = `+84${zaloId.slice(-9)}`;
   const name = `${firstName} ${lastName}`.trim();
@@ -193,7 +215,7 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
   }
 };
 
-// API đơn giản hóa để gọi từ Zalo webhook
+// Gửi từ webhook gọi tới đây
 export const sendToGHL = async (sender, message) => {
   const { id: zaloId, firstName, lastName } = sender;
   await handleGHLMessage({ zaloId, firstName, lastName, message });
