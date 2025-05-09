@@ -2,8 +2,8 @@ name: Update GHL Tokens Every 20 Hours
 
 on:
   schedule:
-    - cron: '0 */20 * * *' # chạy mỗi 20 giờ
-  workflow_dispatch: # cho phép chạy thủ công
+    - cron: '0 */20 * * *'  # Chạy mỗi 20 giờ
+  workflow_dispatch:         # Cho phép chạy thủ công
 
 permissions:
   contents: write
@@ -30,10 +30,10 @@ jobs:
       - name: Run update-ghl-token.js
         run: node update-ghl-token.js
 
-      - name: Commit and push updated .env
+      - name: Commit and push updated .env (if changed)
         run: |
-          git config user.name 'github-actions'
-          git config user.email 'github-actions@github.com'
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
           git add .env
-          git diff --cached --quiet || git commit -m "🔁 Update GHL tokens"
+          git diff --cached --quiet || git commit -m "🔁 Update GHL_ACCESS_TOKEN and GHL_REFRESH_TOKEN"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
