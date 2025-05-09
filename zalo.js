@@ -16,7 +16,18 @@ router.post('/zalo', async (req, res) => {
     if (body.event_name === 'user_send_text') {
       const userId = body.sender.id;
       const message = body.message.text;
-console.log('📦 Dữ liệu webhook đầy đủ:', JSON.stringify(body, null, 2));
+// 
+      console.log('📥 Webhook nhận được:', body);
+
+if (body.event_name === 'user_send_text') {
+  const userId = body.sender.id;
+  const message = body.message.text;
+
+  console.log('👤 User ID:', userId);
+  console.log('💬 Message:', message);
+
+  return res.json({ userId, message });
+}
       // Gọi API lấy thông tin người dùng từ Zalo (API v3.0)
       const userInfoRes = await axios({
         method: 'post',
