@@ -43,7 +43,6 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
     console.log('✅ Created/Found Contact:', contactId);
     return contactId;
   } catch (error) {
-    // ✅ Nếu bị lỗi trùng contact, lấy từ meta
     const meta = error.response?.data?.meta;
     if (
       error.response?.status === 400 &&
@@ -59,27 +58,56 @@ export const createOrGetContact = async ({ phone, name, locationId }) => {
   }
 };
 
-// 2. Create Conversation
-export const createConversation = async (locationId, contactId) => {
+// 2. Get or Create Conversation
+export const getOrCreateConversation = async (locationId, contactId) => {
   try {
-    const options = {
-      method: 'POST',
-      url: `${GHL_API_BASE}/conversations/`,
-      headers: { ...HEADERS, Version: VERSION_CONVERSATION },
-      data: { locationId, contactId }
-    };
+    // Tạo mới conversation
+    const response = await axios.post(
+      `${GHL_API_BASE}/conversations/`,
+      { locationId, contactId },
+      { headers: { ...HEADERS, Version: VERSION_CONVERSATION } }
+    );
 
-    const { data } = await axios.request(options);
-    const conversationId = data?.conversation?.id;
-
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error(`❌ conversationId không hợp lệ: ${conversationId}`);
-    }
-
+    const conversationId = response?.data?.conversation?.id;
     console.log('✅ Created Conversation:', conversationId);
     return conversationId;
   } catch (error) {
+    const message = error.response?.data?.message || '';
+    if (
+      error.response?.status === 400 &&
+      message.includes('already exists')
+    ) {
+      // Nếu conversation đã tồn tại, tìm lại conversation
+      console.warn('⚠️ Conversation đã tồn tại. Đang tìm lại...');
+      return await findConversationByContact(locationId, contactId);
+    }
+
     console.error('❌ Failed to create conversation:', error.response?.data || error);
+    throw error;
+  }
+};
+
+// 2.1 Tìm conversation đã tồn tại
+export const findConversationByContact = async (locationId, contactId) => {
+  try {
+    const response = await axios.get(
+      `${GHL_API_BASE}/conversations/search`,
+      {
+        headers: { ...HEADERS, Version: VERSION_CONVERSATION },
+        params: {
+          locationId,
+          contactId
+        }
+      }
+    );
+
+    const conversation = response.data?.conversations?.[0];
+    if (!conversation?.id) throw new Error('❌ Không tìm thấy conversation hiện có');
+
+    console.log('✅ Found existing conversation:', conversation.id);
+    return conversation.id;
+  } catch (error) {
+    console.error('❌ Failed to find existing conversation:', error.response?.data || error);
     throw error;
   }
 };
@@ -91,22 +119,20 @@ export const addInboundMessage = async ({
   date = new Date().toISOString()
 }) => {
   try {
-    const options = {
-      method: 'POST',
-      url: `${GHL_API_BASE}/conversations/messages/inbound`,
-      headers: { ...HEADERS, Version: VERSION_CONVERSATION },
-      data: {
+    const response = await axios.post(
+      `${GHL_API_BASE}/conversations/messages/inbound`,
+      {
         type: 'SMS',
         message,
         conversationId,
         direction: 'inbound',
         date
-      }
-    };
+      },
+      { headers: { ...HEADERS, Version: VERSION_CONVERSATION } }
+    );
 
-    const { data } = await axios.request(options);
-    console.log('✅ Inbound message sent:', data);
-    return data;
+    console.log('✅ Inbound message sent:', response.data);
+    return response.data;
   } catch (error) {
     console.error('❌ Failed to send inbound message:', error.response?.data || error);
     throw error;
@@ -121,7 +147,7 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
 
   try {
     const contactId = await createOrGetContact({ phone, name, locationId });
-    const conversationId = await createConversation(locationId, contactId);
+    const conversationId = await getOrCreateConversation(locationId, contactId);
     await addInboundMessage({ conversationId, message });
   } catch (error) {
     console.error('❌ handleGHLMessage failed:', error.response?.data || error);
