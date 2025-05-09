@@ -8,8 +8,8 @@ dotenv.config();
 
 const router = express.Router();
 
-// Zalo webhook handler (POST /zalo/)
-router.post('/', async (req, res) => {
+// Webhook chính xử lý logic Zalo → GHL
+export async function handleZaloWebhook(req, res) {
   const body = req.body;
 
   try {
@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
       console.log('👤 User ID:', userId);
       console.log('💬 Message:', message);
 
-      // Gọi API lấy thông tin người dùng từ Zalo (API v3.0)
+      // Gọi API lấy thông tin người dùng từ Zalo
       const userInfoRes = await axios({
         method: 'post',
         url: 'https://openapi.zalo.me/v3.0/oa/userfield/get',
@@ -35,12 +35,13 @@ router.post('/', async (req, res) => {
           field_type: 'system'
         }
       });
-console.log('📦 Dữ liệu người dùng từ Zalo:', JSON.stringify(userInfoRes.data, null, 2));
+
+      console.log('📦 Dữ liệu người dùng từ Zalo:', JSON.stringify(userInfoRes.data, null, 2));
       const userData = userInfoRes.data.data;
       const fullName = userData?.display_name || 'Zalo User';
 
       const firstName = fullName;
-      const lastName = ''; // Zalo không có họ riêng
+      const lastName = '';
 
       await handleGHLMessage({
         zaloId: userId,
@@ -52,13 +53,17 @@ console.log('📦 Dữ liệu người dùng từ Zalo:', JSON.stringify(userInf
       return res.sendStatus(200);
     }
 
-    return res.sendStatus(200); // Bỏ qua các sự kiện khác
+    return res.sendStatus(200); // Bỏ qua các sự kiện không xử lý
   } catch (err) {
     console.error('❌ Zalo webhook error:', err.response?.data || err.message);
     return res.sendStatus(500);
   }
-});
+}
 
+// Gắn route cho /zalo/ dùng chung handler
+router.post("/", handleZaloWebhook);
+
+// Gửi tin nhắn từ GHL về Zalo
 export async function replyZaloText({ userId, message }) {
   try {
     await axios.post(
