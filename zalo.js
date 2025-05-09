@@ -30,7 +30,7 @@ router.post('/zalo', async (req, res) => {
           field_type: 'system'
         }
       });
- const userData = response.data.data;
+ const userData = userInfoRes.data.data;
     const fullName = userData?.display_name || 'Zalo User';
 
 // Bạn có thể tách tên nếu muốn, hoặc giữ nguyên
