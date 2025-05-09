@@ -1,4 +1,4 @@
-// ghl.js
+// 🔁 FILE: ghl.js
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -13,64 +13,47 @@ const HEADERS = {
 const VERSION_CONTACT = '2021-07-28';
 const VERSION_CONVERSATION = '2021-04-15';
 
-// 🔍 Tìm contact theo Zalo ID custom field
-export const findContactByZaloId = async (zaloId, locationId) => {
+export const createOrGetContact = async ({ phone, name, locationId, zaloId }) => {
   try {
-    const response = await axios.get(`${GHL_API_BASE}/contacts/`, {
-      headers: { ...HEADERS, Version: VERSION_CONTACT },
-      params: {
-        locationId,
-        query: zaloId
-      }
-    });
+    const [firstName, ...rest] = name.split(' ');
+    const lastName = rest.join(' ') || '-';
 
-    const contact = response.data?.contacts?.find(
-      c => c?.customField?.zalo_id === zaloId
-    );
-
-    if (contact?.id) {
-      console.log('✅ Found contact by Zalo ID:', contact.id);
-      return contact.id;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('❌ Error finding contact by Zalo ID:', error.response?.data || error);
-    return null;
-  }
-};
-
-// 1. Create or Get Contact
-export const createOrGetContact = async ({ phone, name, zaloId, locationId }) => {
-  const [firstName, ...rest] = name.split(' ');
-  const lastName = rest.join(' ') || '-';
-
-  const existingContactId = await findContactByZaloId(zaloId, locationId);
-  if (existingContactId) return existingContactId;
-
-  try {
-    const options = {
-      method: 'POST',
-      url: `${GHL_API_BASE}/contacts/`,
-      headers: { ...HEADERS, Version: VERSION_CONTACT },
-      data: {
+    const createRes = await axios.post(
+      `${GHL_API_BASE}/contacts/`,
+      {
         firstName,
         lastName,
         name,
         phone,
         locationId,
         source: 'zalo-oa',
-        tags: ['zalo'],
-        customField: {
-          zalo_id: zaloId
-        }
-      }
-    };
+        tags: ['zalo']
+      },
+      { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+    );
 
-    const { data } = await axios.request(options);
-    const contactId = data?.contact?.id;
+    const contactId = createRes?.data?.contact?.id;
+    if (!contactId || typeof contactId !== 'string') {
+      throw new Error(`❌ contactId không hợp lệ: ${contactId}`);
+    }
 
-    console.log('✅ Created new contact:', contactId);
+    console.log('✅ Created/Found Contact:', contactId);
+
+    // Gắn zalo_id làm custom field sau khi tạo
+    await axios.put(
+      `${GHL_API_BASE}/contacts/${contactId}`,
+      {
+        customFields: [
+          {
+            key: 'zalo_id',
+            value: zaloId
+          }
+        ]
+      },
+      { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+    );
+    console.log('✅ Updated custom field zalo_id:', zaloId);
+
     return contactId;
   } catch (error) {
     const meta = error.response?.data?.meta;
@@ -80,6 +63,25 @@ export const createOrGetContact = async ({ phone, name, zaloId, locationId }) =>
       meta?.contactId
     ) {
       console.warn('⚠️ Contact đã tồn tại. Dùng lại contactId:', meta.contactId);
+
+      try {
+        await axios.put(
+          `${GHL_API_BASE}/contacts/${meta.contactId}`,
+          {
+            customFields: [
+              {
+                key: 'zalo_id',
+                value: zaloId
+              }
+            ]
+          },
+          { headers: { ...HEADERS, Version: VERSION_CONTACT } }
+        );
+        console.log('✅ Updated existing contact\'s custom field zalo_id');
+      } catch (updateErr) {
+        console.warn('⚠️ Không thể cập nhật custom field:', updateErr.response?.data || updateErr.message);
+      }
+
       return meta.contactId;
     }
 
@@ -88,7 +90,6 @@ export const createOrGetContact = async ({ phone, name, zaloId, locationId }) =>
   }
 };
 
-// 2. Get or Create Conversation
 export const getOrCreateConversation = async (locationId, contactId) => {
   try {
     const response = await axios.post(
@@ -102,7 +103,10 @@ export const getOrCreateConversation = async (locationId, contactId) => {
     return conversationId;
   } catch (error) {
     const message = error.response?.data?.message || '';
-    if (error.response?.status === 400 && message.includes('already exists')) {
+    if (
+      error.response?.status === 400 &&
+      message.includes('already exists')
+    ) {
       console.warn('⚠️ Conversation đã tồn tại. Đang tìm lại...');
       return await findConversationByContact(locationId, contactId);
     }
@@ -112,13 +116,15 @@ export const getOrCreateConversation = async (locationId, contactId) => {
   }
 };
 
-// 2.1 Find existing conversation
 export const findConversationByContact = async (locationId, contactId) => {
   try {
-    const response = await axios.get(`${GHL_API_BASE}/conversations/search`, {
-      headers: { ...HEADERS, Version: VERSION_CONVERSATION },
-      params: { locationId, contactId }
-    });
+    const response = await axios.get(
+      `${GHL_API_BASE}/conversations/search`,
+      {
+        headers: { ...HEADERS, Version: VERSION_CONVERSATION },
+        params: { locationId, contactId }
+      }
+    );
 
     const conversation = response.data?.conversations?.[0];
     if (!conversation?.id) throw new Error('❌ Không tìm thấy conversation hiện có');
@@ -131,7 +137,6 @@ export const findConversationByContact = async (locationId, contactId) => {
   }
 };
 
-// 3. Add Inbound Message
 export const addInboundMessage = async ({ conversationId, message, date = new Date().toISOString() }) => {
   try {
     const response = await axios.post(
@@ -154,14 +159,13 @@ export const addInboundMessage = async ({ conversationId, message, date = new Da
   }
 };
 
-// 4. Tổng hợp xử lý tin nhắn từ Zalo
 export const handleGHLMessage = async ({ zaloId, firstName, lastName, message }) => {
   const phone = `+84${zaloId.slice(-9)}`;
   const name = `${firstName} ${lastName}`.trim();
   const locationId = process.env.GHL_LOCATION_ID;
 
   try {
-    const contactId = await createOrGetContact({ phone, name, zaloId, locationId });
+    const contactId = await createOrGetContact({ phone, name, locationId, zaloId });
     const conversationId = await getOrCreateConversation(locationId, contactId);
     await addInboundMessage({ conversationId, message });
   } catch (error) {
@@ -169,7 +173,6 @@ export const handleGHLMessage = async ({ zaloId, firstName, lastName, message })
   }
 };
 
-// 5. Gửi từ app chính
 export const sendToGHL = async (sender, message) => {
   const { id: zaloId, firstName, lastName } = sender;
   await handleGHLMessage({ zaloId, firstName, lastName, message });
