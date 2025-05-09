@@ -42,9 +42,12 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
     await axios.put(
       `${GHL_API_BASE}/contacts/${contactId}`,
       {
-        customField: {
-          zalo_id: zaloId
-        }
+        customFields: [
+          {
+            key: 'zalo_id',
+            value: zaloId
+          }
+        ]
       },
       { headers: { ...HEADERS, Version: VERSION_CONTACT } }
     );
@@ -64,9 +67,12 @@ export const createOrGetContact = async ({ phone, name, locationId, zaloId }) =>
         await axios.put(
           `${GHL_API_BASE}/contacts/${meta.contactId}`,
           {
-            customField: {
-              zalo_id: zaloId
-            }
+            customFields: [
+              {
+                key: 'zalo_id',
+                value: zaloId
+              }
+            ]
           },
           { headers: { ...HEADERS, Version: VERSION_CONTACT } }
         );
