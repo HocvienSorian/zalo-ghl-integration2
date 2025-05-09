@@ -17,7 +17,7 @@ const updateZaloTokens = async () => {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'app_secret': process.env.ZALO_APP_SECRET, // ✅ Đúng header
+          'secret_key': process.env.ZALO_APP_SECRET,
         },
       }
     );
@@ -27,7 +27,7 @@ const updateZaloTokens = async () => {
     let envFile = fs.readFileSync('.env', 'utf-8');
 
     envFile = envFile
-      .replace(/ZALO_OA_ACCESS_TOKEN=.*/g, `ZALO_OA_ACCESS_TOKEN=${access_token}`) // ✅ đúng tên biến
+      .replace(/ZALO_OA_ACCESS_TOKEN=.*/g, `ZALO_OA_ACCESS_TOKEN=${access_token}`)
       .replace(/ZALO_REFRESH_TOKEN=.*/g, `ZALO_REFRESH_TOKEN=${refresh_token}`);
 
     fs.writeFileSync('.env', envFile, 'utf-8');
@@ -35,8 +35,8 @@ const updateZaloTokens = async () => {
     console.log('✅ Zalo access & refresh tokens updated!');
   } catch (error) {
     console.error('❌ Error updating Zalo tokens:', error.response?.data || error.message);
-    process.exit(1);
   }
 };
 
 updateZaloTokens();
+
