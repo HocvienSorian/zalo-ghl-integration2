@@ -1,0 +1,69 @@
+name: Update GHL and ZALO Tokens Every 20 Hours
+
+on:
+  schedule:
+    - cron: '0 */20 * * *'  # Chạy mỗi 20 giờ
+  workflow_dispatch:        # Cho phép chạy thủ công
+
+permissions:
+  contents: write
+
+jobs:
+  update-zalo-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Load current .env from Git
+        run: git checkout origin/main -- .env
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run update-zalo-token.js
+        run: node update-zalo-token.js
+
+      - name: Commit and push updated .env (if changed)
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add .env
+          git diff --cached --quiet || git commit -m "🔁 Update ZALO tokens"
+          git pull --rebase origin main
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+
+  update-ghl-token:
+    runs-on: ubuntu-latest
+    needs: update-zalo-token   # ✅ Chạy sau khi job zalo hoàn thành
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Load current .env from Git
+        run: git checkout origin/main -- .env
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run update-ghl-token.js
+        run: node update-ghl-token.js
+
+      - name: Commit and push updated .env (if changed)
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add .env
+          git diff --cached --quiet || git commit -m "🔁 Update GHL_ACCESS_TOKEN and GHL_REFRESH_TOKEN"
+          git pull --rebase origin main
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
