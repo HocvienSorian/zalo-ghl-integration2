@@ -2,7 +2,7 @@ name: Update ZALO Tokens Every 20 Hours
 
 on:
   schedule:
-    - cron: '0 */20 * * *'  # Chạy mỗi 20 giờ
+    - cron: '0 */18 * * *'  # Chạy mỗi 20 giờ
   workflow_dispatch:        # Cho phép chạy thủ công
 
 permissions:
